@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3-7年舊客精耕追蹤管理系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    screens: {
+                        'xs': '400px',
+                    },
+                    borderRadius: {
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body { 
+            /* 細膩通透的奇幻水彩漸層渲染背景 */
+            background: linear-gradient(135deg, #f2eff4 0%, #e8edf0 25%, #f7f2eb 50%, #eff5f1 75%, #f4eef0 100%);
+            background-attachment: fixed;
+            color: #444a4d; 
+        }
+        /* 帶有留白與溫度感的手繪線條、通透感卡片 */
+        .watercolor-card { 
+            border: 1px solid rgba(218, 214, 204, 0.65); 
+            background-color: rgba(255, 255, 255, 0.75); 
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px -5px rgba(150, 145, 135, 0.06);
+        }
+        .sketch-divider {
+            border-style: dashed !important;
+            border-color: #cbd3d6 !important;
+        }
+        .morandi-th { background-color: rgba(234, 232, 225, 0.7); color: #5a6266; }
+        input, select { border-color: #d1cfc7 !important; background-color: rgba(255, 255, 255, 0.85) !important; }
+        input:focus, select:focus { border-color: #788896 !important; ring-color: rgba(120, 136, 150, 0.2) !important; }
+        .toast-popup {
+            position: fixed; bottom: 20px; right: 20px;
+            background-color: #4a555a; color: #ffffff;
+            padding: 8px 16px; border-radius: 8px;
+            z-index: 100; font-size: 12px; font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: opacity 0.3s; opacity: 0; pointer-events: none;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased select-none text-xs md:text-sm p-0 m-0">
+
+    <div id="toastNotification" class="toast-popup rounded-lg">已複製客編</div>
+
+    <header class="bg-[#4a555a]/90 backdrop-blur-md text-white px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm sticky top-0 z-50 border-b border-[#788896]/20">
+        <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <span class="bg-[#788896] text-white text-[10px] md:text-xs font-bold px-3 py-1 rounded-full shadow-xs tracking-wide">
+                Clinico 舊客精耕專案
+            </span>
+            <h1 class="text-sm md:text-base font-bold tracking-wider truncate text-[#f2f4f5]">3-7年舊客精耕追蹤管理系統</h1>
+            
+            <div id="cloudStatus" class="flex items-center space-x-1 bg-slate-700/50 text-slate-400 text-[10px] md:text-xs px-2.5 py-1 rounded border border-slate-600/40">
+                <span id="cloudStatusText">雲端連線中...</span>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+            <button class="bg-[#5a666d]/80 hover:bg-[#67747c] text-[#f2f4f5] text-xs px-3 py-1.5 rounded-xl flex items-center space-x-1 border border-[#6b787f] transition shadow-xs">
+                <span class="material-icons text-sm md:text-base">download</span>
+                <span>匯出進度</span>
+            </button>
+            <button onclick="resetSystem()" class="bg-[#8c7674]/20 hover:bg-[#8c7674]/40 text-[#d4b6b3] text-xs px-3 py-1.5 rounded-xl flex items-center space-x-1 border border-[#ba9e9b]/30 transition">
+                <span class="material-icons text-sm md:text-base">refresh</span>
+                <span>重置看板</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full px-3 md:px-6 py-6 space-y-5">
+
+        <section class="watercolor-card rounded-2xl p-5">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-5">
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-1.5 h-4 bg-[#788896] rounded-full"></div>
+                        <h2 class="text-sm md:text-base font-bold text-[#3d454a]">核心門市追蹤看板 (週聯繫目標：各店 10 筆)</h2>
+                    </div>
+                    <p class="text-[11px] text-[#7e878c]">
+                        本周區間：<span id="weekRangeText" class="font-semibold text-[#5a6266]"></span> <span class="hidden md:inline text-[#9ba3a8]">（依據出貨滿 3-7 年之沉睡與回診舊客名單進行跨門市追蹤）</span>
+                    </p>
+                </div>
+                <div class="bg-[#f0e6df]/50 text-[#8c6d58] text-xs font-semibold px-4 py-2 rounded-xl border border-[#e6ded7] w-full md:w-auto text-center md:text-left shadow-xs">
+                    專案總聯繫進度：<span id="totalProgressCount" class="text-[#788896] font-bold text-sm">0</span> / <span id="totalCountHeader" class="font-bold">0</span> 筆
+                </div>
+            </div>
+
+            <div id="storeCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9 gap-3">
+            </div>
+        </section>
+
+        <div class="border-b border-[#cbd3d6] overflow-x-auto flex-nowrap whitespace-nowrap px-1">
+            <nav class="flex space-x-6 md:space-x-8" aria-label="Tabs">
+                <button id="tab1-btn" onclick="switchTab(1)" class="border-b-2 border-[#788896] text-[#788896] py-3 px-2 inline-flex items-center text-xs md:text-sm font-bold shrink-0 transition-all">
+                    <span class="material-icons mr-1.5 text-base md:text-lg">assignment</span>
+                    精耕工作台 (舊客清單)
+                </button>
+                <button id="tab2-btn" onclick="switchTab(2)" class="border-b-2 border-transparent text-[#7e878c] hover:text-[#5a6266] py-3 px-2 inline-flex items-center text-xs md:text-sm font-medium shrink-0 transition-all">
+                    <span class="material-icons mr-1.5 text-base md:text-lg">bar_chart</span>
+                    數據統計與轉換分析
+                </button>
+            </nav>
+        </div>
+
+        <div id="tab1-content" class="grid grid-cols-12 gap-5 items-start">
+            
+            <aside class="col-span-12 lg:col-span-2 watercolor-card rounded-2xl p-4 space-y-4">
+                <div class="flex items-center space-x-1.5 pb-2 border-b sketch-divider">
+                    <span class="material-icons text-[#788896] text-base">filter_alt</span>
+                    <h3 class="text-xs font-bold text-[#3d454a]">工作台智慧篩選</h3>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-bold text-[#7e878c] block">精耕客群智慧分級</label>
+                        <div class="grid grid-cols-2 lg:grid-cols-1 gap-1.5">
+                            <button data-level="全部" onclick="selectLevel('全部')" class="level-btn bg-[#788896] text-white text-[11px] py-1.5 px-2.5 rounded-xl font-medium text-left transition shadow-xs">全部舊客</button>
+                            <button data-level="🔥【升級黃金期】" onclick="selectLevel('🔥【升級黃金期】')" class="level-btn w-full bg-white/90 hover:bg-gray-50 text-[#b8837e] border border-gray-200 text-[11px] py-1.5 px-2.5 rounded-xl text-left transition">🔥 升級黃金期</button>
+                            <button data-level="⏱️【保養關懷期】" onclick="selectLevel('⏱️【保養關懷期】')" class="level-btn w-full bg-white/90 hover:bg-gray-50 text-[#839281] border border-gray-200 text-[11px] py-1.5 px-2.5 rounded-xl text-left transition">⏱️ 保養關懷期</button>
+                            <button data-level="⚠️【抗拒配戴類】" onclick="selectLevel('⚠️【抗拒配戴類】')" class="level-btn w-full bg-white/90 hover:bg-gray-50 text-[#bda286] border border-gray-200 text-[11px] py-1.5 px-2.5 rounded-xl text-left transition">⚠️ 抗拒配戴類</button>
+                            <button data-level="🎒【學齡成長類】" onclick="selectLevel('🎒【學齡成長類】')" class="level-btn w-full bg-white/90 hover:bg-gray-50 text-[#8e8299] border border-gray-200 text-[11px] py-1.5 px-2.5 rounded-xl text-left transition">🎒 學齡成長類</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-[#7e878c] block">聯繫結果狀態</label>
+                        <select id="statusFilter" onchange="selectStatus(this.value)" class="w-full border border-gray-300 rounded-xl px-2.5 py-1.5 text-[11px] text-gray-700 focus:outline-none shadow-xs">
+                            <option value="所有狀態">所有狀態</option>
+                            <option value="未聯繫">未聯繫</option>
+                            <option value="已預約進店">已預約進店</option>
+                            <option value="未接/語音">未接/語音</option>
+                            <option value="已換機">已換機</option>
+                            <option value="婉拒進店">婉拒進店</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-[#7e878c] block">試聽結果狀態</label>
+                        <select id="trialFilter" onchange="selectTrialFilter(this.value)" class="w-full border border-gray-300 rounded-xl px-2.5 py-1.5 text-[11px] text-gray-700 focus:outline-none shadow-xs">
+                            <option value="所有結果">所有結果</option>
+                            <option value="僅顯示有試聽">僅顯示有試聽</option>
+                            <option value="僅顯示未試聽">僅顯示未試聽</option>
+                            <option value="買斷/訂閱">買斷/訂閱</option>
+                            <option value="新機佳等舊機壞">新機佳等舊機壞</option>
+                            <option value="新機普通">新機普通</option>
+                            <option value="新機不習慣">新機不習慣</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-[#7e878c] block">商機評估</label>
+                        <select id="opportunityFilter" onchange="selectOpportunity(this.value)" class="w-full border border-gray-300 rounded-xl px-2.5 py-1.5 text-[11px] text-gray-700 focus:outline-none shadow-xs">
+                            <option value="所有商機">所有商機</option>
+                            <option value="未評估">未評估 (空白)</option>
+                            <option value="高">高商機</option>
+                            <option value="中">中商機</option>
+                            <option value="低">低商機</option>
+                        </select>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="col-span-12 lg:col-span-10 bg-white rounded-xl shadow-sm p-3 md:p-4 border border-[#e3e1da] space-y-3 overflow-hidden watercolor-card">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b sketch-divider">
+                    <h3 class="text-xs md:text-sm font-bold text-[#3d454a] flex items-center">
+                        <span class="material-icons text-[#7e878c] mr-1.5 text-base md:text-lg">list_alt</span>
+                        精耕清單工作台
+                    </h3>
+                    <div class="flex items-center space-x-2 text-[11px] font-bold text-[#788896]">
+                        <span>目前符合：<span id="filteredCount" class="font-bold">0</span> / <span id="totalCountFooter" class="font-bold">0</span> 筆</span>
+                    </div>
+                </div>
+
+                <div class="w-full border border-[#e3e1da] rounded-xl overflow-hidden bg-white/90 shadow-xs">
+                    <div class="hidden md:block overflow-x-auto">
+                        <table class="w-full text-left border-collapse table-fixed">
+                            <thead>
+                                <tr class="morandi-th border-b border-[#e3e1da] text-[11px] font-bold">
+                                    <th class="py-3 px-1 text-center w-[4%]">級</th>
+                                    <th class="py-3 px-1 text-left w-[11%]">個案資訊</th>
+                                    <th class="py-3 px-1 text-center w-[11%]">原屬門市/聽力師</th>
+                                    <th class="py-3 px-1 text-left w-[14%]">最新買斷機型</th>
+                                    <th class="py-3 px-1 text-center w-[8%]">最新買斷日</th>
+                                    <th class="py-3 px-1 text-center w-[11%]">聯繫人員</th>
+                                    <th class="py-3 px-1 text-center w-[9%]">聯繫日期</th>
+                                    <th class="py-3 px-1 text-center w-[11%]">聯繫結果</th>
+                                    <th class="py-3 px-1 text-center w-[9%]">下次進店日</th>
+                                    <th class="py-3 px-1 text-center w-[6%]">2026年<br>試聽</th>
+                                    <th class="py-3 px-1 text-left w-[11%]">試聽結果</th>
+                                    <th class="py-3 px-1 text-center w-[4%]">商機</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customerTableBody" class="divide-y divide-gray-100 text-[11px] text-gray-700 bg-white/50">
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="customerMobileList" class="block md:hidden divide-y divide-gray-200 bg-white">
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-2 pt-2 text-xs">
+                    <div class="text-[#7e878c]" id="paginationInfo">顯示第 1 - 20 筆</div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="changePage(-1)" id="prevPageBtn" class="px-3 py-1 rounded-xl border border-[#d1cfc7] bg-white hover:bg-gray-50 disabled:opacity-40 font-medium text-[#5a6266] transition">上一頁</button>
+                        <div class="flex items-center space-x-1">
+                            <span>第</span>
+                            <select id="pageSelect" onchange="jumpToPage(this.value)" class="border border-[#d1cfc7] rounded-xl px-2 py-0.5 font-medium focus:outline-none"></select>
+                            <span>/ <span id="totalPagesText">1</span> 頁</span>
+                        </div>
+                        <button onclick="changePage(1)" id="nextPageBtn" class="px-3 py-1 rounded-xl border border-[#d1cfc7] bg-white hover:bg-gray-50 disabled:opacity-40 font-medium text-[#5a6266] transition">下一頁</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div id="tab2-content" class="hidden space-y-5">
+            <div class="grid grid-cols-12 gap-5">
+                <div class="col-span-12 md:col-span-4 watercolor-card rounded-2xl p-5 space-y-4">
+                    <div class="flex items-center space-x-1.5 border-b sketch-divider pb-2">
+                        <span class="material-icons text-[#788896]">donut_large</span>
+                        <h3 class="font-bold text-[#3d454a] text-xs md:text-sm">精耕整體轉換指標</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs text-[#7e878c]">
+                                <span class="font-medium">專案追蹤聯繫率</span>
+                                <span id="stat_contactPct" class="font-bold text-gray-800">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                <div id="stat_contactBar" class="bg-[#788896] h-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="space-y-1 pt-1">
+                            <div class="flex justify-between text-xs text-[#7e878c]">
+                                <span class="font-medium">預約進店率</span>
+                                <span id="stat_invitePct" class="font-bold text-[#839281]">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                <div id="stat_inviteBar" class="bg-[#839281] h-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="space-y-1 pt-1">
+                            <div class="flex justify-between text-xs text-[#7e878c]">
+                                <span class="font-medium">升級成交率 (買斷/訂閱)</span>
+                                <span id="stat_closedPct" class="font-bold text-[#b8837e]">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                <div id="stat_closedBar" class="bg-[#b8837e] h-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-span-12 md:col-span-4 watercolor-card rounded-2xl p-5">
+                    <div class="flex items-center space-x-1.5 border-b sketch-divider pb-2 mb-3">
+                        <span class="material-icons text-[#788896]">pie_chart</span>
+                        <h3 class="font-bold text-[#3d454a] text-xs md:text-sm">追蹤狀態佔比</h3>
+                    </div>
+                    <div id="statusProportionContainer" class="space-y-2.5 text-xs"></div>
+                </div>
+
+                <div class="col-span-12 md:col-span-4 watercolor-card rounded-2xl p-5">
+                    <div class="flex items-center space-x-1.5 border-b sketch-divider pb-2 mb-3">
+                        <span class="material-icons text-[#788896]">trending_up</span>
+                        <h3 class="font-bold text-[#3d454a] text-xs md:text-sm">各門市多元衝刺成果指標</h3>
+                    </div>
+                    <div id="weeklyStoreStatsContainer" class="space-y-3 max-h-[220px] overflow-y-auto pr-1"></div>
+                </div>
+
+                <div class="col-span-12 md:col-span-4 watercolor-card rounded-2xl p-5">
+                    <div class="flex items-center space-x-1.5 border-b sketch-divider pb-2 mb-3">
+                        <span class="material-icons text-[#788896]">hearing</span>
+                        <h3 class="font-bold text-[#3d454a] text-xs md:text-sm">2026年試聽結果統計</h3>
+                    </div>
+                    <div class="text-xs text-[#7e878c] mb-2 font-medium">
+                        總實際試聽人數：<span id="stat_totalTrials" class="font-bold text-gray-800">0</span> 筆
+                    </div>
+                    <div id="trialResultProportionContainer" class="space-y-2.5 text-xs"></div>
+                </div>
+            </div>
+
+            <div class="watercolor-card rounded-2xl p-5 space-y-3">
+                <div class="flex items-center space-x-1.5 border-b sketch-divider pb-2">
+                    <span class="material-icons text-[#788896]">people_alt</span>
+                    <h3 class="font-bold text-[#3d454a] text-xs md:text-sm">👥 門市同仁聯繫進度統計 (全區 14 位同仁)</h3>
+                </div>
+                <div id="staffProgressContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[320px] overflow-y-auto pr-1 pt-1">
+                </div>
+            </div>
+
+            <div class="watercolor-card rounded-2xl p-5 space-y-3">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b sketch-divider pb-2">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="material-icons text-[#b8837e]">assignment_late</span>
+                        <h3 class="font-bold text-[#3d454a] text-xs md:text-sm">🔥 核心升級攻堅：高商機精耕名單庫</h3>
+                    </div>
+                    <div class="bg-[#fcf7f6] text-[#b8837e] text-[11px] font-bold px-3 py-1 rounded-xl border border-[#ebd2d0]">
+                        待開發高商機：<span id="highOppCount">0</span> 筆
+                    </div>
+                </div>
+                <div class="w-full overflow-x-auto rounded-xl shadow-xs border border-gray-100 bg-white/90">
+                    <table class="w-full text-left border-collapse table-fixed min-w-[800px] lg:min-w-0">
+                        <thead>
+                            <tr class="bg-slate-50/70 border-b border-gray-100 text-gray-600 text-[11px] font-bold">
+                                <th class="py-3 px-1 text-center w-[8%]">級</th>
+                                <th class="py-3 px-1 text-left w-[24%]">個案資訊 (含出貨日)</th>
+                                <th class="py-3 px-1 text-center w-[20%]">所屬門市 / 原聽力師</th>
+                                <th class="py-3 px-1 text-left w-[30%]">目前老舊機型</th>
+                                <th class="py-3 px-1 text-center w-[18%]">追蹤狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody id="highOppTableBody" class="divide-y divide-gray-100 text-[11px] text-gray-700 bg-white/50">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // 核心載入名單資料庫
+        const customerData = [{"id": "HA0200129", "name": "洪x洋", "store": "N011", "staff": "江浩誠", "age": "11", "model": "OPN PLAY2", "shipDate": "2020-8-24", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0076166", "name": "詹x慈", "store": "N021", "staff": "江浩誠", "age": "15", "model": "CR40", "shipDate": "2017-9-11", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0105576", "name": "潘x鈺", "store": "N021", "staff": "江浩誠", "age": "52", "model": "MD1- CP", "shipDate": "2021-2-18", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0077801", "name": "張x絢", "store": "N021", "staff": "劉芝言", "age": "22", "model": "NERA2", "shipDate": "2017-1-19", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0196089", "name": "陳x葉", "store": "N901-1", "staff": "蔡亞欣", "age": "48", "model": "SONIC RADIANT 40", "shipDate": "2022-12-27", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0132876", "name": "賴x燁", "store": "N297", "staff": "吳昱瑩", "age": "11", "model": "CR40", "shipDate": "2019-11-26", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0147315", "name": "蘇x賢", "store": "N297", "staff": "吳昱瑩", "age": "64", "model": "OPN S1", "shipDate": "2020-9-5", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0119349", "name": "游x雄", "store": "N297", "staff": "葉純妤", "age": "49", "model": "Dinamico D-FS", "shipDate": "2019-5-18", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0144646", "name": "林x陽", "store": "N297", "staff": "葉純妤", "age": "56", "model": "CR40", "shipDate": "2020-8-17", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0126266", "name": "彭x正", "store": "N297", "staff": "葉淳妤", "age": "65", "model": "CR40", "shipDate": "2019-11-26", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0137129", "name": "張x霖", "store": "N297", "staff": "葉淳妤", "age": "42", "model": "OPN3", "shipDate": "2020-1-17", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0204186", "name": "程x瑄", "store": "N297", "staff": "葉淳妤", "age": "12", "model": "OPN PLAY2", "shipDate": "2020-11-10", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0373753", "name": "張x妡", "store": "N297", "staff": "葉淳妤", "age": "59", "model": "MORE 1", "shipDate": "2022-5-29", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0193727", "name": "顏x興", "store": "N021", "staff": "江浩誠", "age": "70", "model": "MORE 3", "shipDate": "2022-11-28", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0193172", "name": "孫x懿", "store": "N021", "staff": "江浩誠", "age": "10", "model": "OPN PLAY2", "shipDate": "2022-12-03", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0158222", "name": "黃x芸", "store": "N021", "staff": "張騏晉", "age": "52", "model": "OPN3", "shipDate": "2020-1-22", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0118498", "name": "王x皓", "store": "N021", "staff": "劉芝言", "age": "35", "model": "OPN3", "shipDate": "2019-4-15", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0142952", "name": "王x閔", "store": "N021", "staff": "劉芝言", "age": "26", "model": "OPN S3", "shipDate": "2020-5-01", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0207795", "name": "黃x親", "store": "N021", "staff": "劉芝言", "age": "68", "model": "MD1- CP", "shipDate": "2021-2-04", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0101894", "name": "陳x瑜", "store": "N021", "staff": "蕭純聿", "age": "11", "model": "SENSEI SP", "shipDate": "2018-4-03", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0153129", "name": "陳x星", "store": "N021", "staff": "蕭純聿", "age": "6", "model": "OPN PLAY2", "shipDate": "2020-12-28", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0183368", "name": "朱x芳", "store": "N021", "staff": "蕭純聿", "age": "58", "model": "MORE 3", "shipDate": "2022-7-09", "nextVisit": "2026-06-30", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0111772", "name": "湯x玲", "store": "N021", "staff": "顧翠華", "age": "56", "model": "SENSEI SP", "shipDate": "2018-12-10", "nextVisit": "", "notes": "不願配戴", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0201846", "name": "邱x晴", "store": "N021", "staff": "顧翠華", "age": "11", "model": "OPN PLAY2", "shipDate": "2020-10-12", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0138120", "name": "林x傑", "store": "N021", "staff": "顧翠華", "age": "44", "model": "OPN3", "shipDate": "2020-2-13", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0206801", "name": "陳x惠", "store": "N021", "staff": "顧翠華", "age": "66", "model": "OPN S3", "shipDate": "2021-4-10", "nextVisit": "2026-06-06", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0155410", "name": "劉x文", "store": "N021", "staff": "顧翠華", "age": "55", "model": "MORE 1", "shipDate": "2021-8-5", "nextVisit": "2026-05-28", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0182759", "name": "陳x玲", "store": "N021", "staff": "顧翠華", "age": "63", "model": "MORE 1", "shipDate": "2022-6-25", "nextVisit": "2026-05-27", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0188627", "name": "邱x琪", "store": "N880-1", "staff": "林劭恩", "age": "39", "model": "MORE 3", "shipDate": "2022-11-07", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0177720", "name": "張x甄", "store": "N021", "staff": "吳碩修", "age": "4", "model": "OPN PLAY2", "shipDate": "2022-7-30", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0113255", "name": "李x馨", "store": "N297", "staff": "葉純妤", "age": "66", "model": "CR40", "shipDate": "2019-1-16", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0141955", "name": "卓x湄", "store": "N297", "staff": "葉純妤", "age": "66", "model": "SIYA 1", "shipDate": "2020-6-27", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0103995", "name": "黃x蘭", "store": "N011", "staff": "江浩誠", "age": "67", "model": "OPN2", "shipDate": "2018-6-19", "nextVisit": "2026-06-03", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0104714", "name": "田x東", "store": "N011", "staff": "江浩誠", "age": "58", "model": "RIA2", "shipDate": "2018-6-06", "nextVisit": "2026-06-11", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0201319", "name": "林x妘", "store": "N011", "staff": "江浩誠", "age": "8", "model": "XCEED PLAY 2", "shipDate": "2020-11-18", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0134177", "name": "林x億", "store": "N011", "staff": "江浩誠", "age": "45", "model": "OPN S2", "shipDate": "2020-5-14", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0022090", "name": "許x璐", "store": "N021", "staff": "江浩誠", "age": "46", "model": "MORE 1", "shipDate": "2021-01-01", "nextVisit": "2026-06-18", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0167572", "name": "王x恩", "store": "N011", "staff": "江浩誠", "age": "7", "model": "OPN PLAY2", "shipDate": "2021-12-28", "nextVisit": "2026-07-08", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0161329", "name": "梁x雯", "store": "N011", "staff": "江浩誠", "age": "57", "model": "CR40", "shipDate": "2021-7-14", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0185173", "name": "陳x存", "store": "N011", "staff": "江浩誠", "age": "5五", "model": "OPN PLAY2", "shipDate": "2022-10-20", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0183591", "name": "柳x青", "store": "N011", "staff": "江浩誠", "age": "53", "model": "SIYA 1", "shipDate": "2022-07-02", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0018752", "name": "陳x筠", "store": "N011", "staff": "詹婷婷", "age": "52", "model": "OPN S2", "shipDate": "2020-06-30", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0166404", "name": "湯x翠", "store": "N011", "staff": "詹婷婷", "age": "63", "model": "MORE 3", "shipDate": "2021-11-17", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0156498", "name": "鄭x雲", "store": "N011", "staff": "詹婷婷", "age": "69", "model": "CR40", "shipDate": "2021-3-22", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0187048", "name": "陳x齡", "store": "N011", "staff": "詹婷婷", "age": "67", "model": "MORE 2", "shipDate": "2022-8-24", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0150125", "name": "黃x玲", "store": "N011", "staff": "謝昀庭", "age": "52", "model": "CR40", "shipDate": "2020-9-21", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0157514", "name": "林x琴", "store": "N107", "staff": "林湘筑", "age": "68", "model": "CR40", "shipDate": "2021-4-21", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0165990", "name": "楊x辰", "store": "N107", "staff": "林湘筑", "age": "11", "model": "OPN PLAY2", "shipDate": "2022-10-01", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0089763", "name": "周x君", "store": "N107", "staff": "林湘筑", "age": "45", "model": "SONIC RADIANT 60", "shipDate": "2022-11-24", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0163220", "name": "蘇x華", "store": "N021", "staff": "江浩誠", "age": "46", "model": "SIYA 1", "shipDate": "2020-11-25", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0157899", "name": "龔x之", "store": "N021", "staff": "江浩誠", "age": "10", "model": "OPN PLAY2", "shipDate": "2021-10-21", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0085621", "name": "魏x容", "store": "N021", "staff": "劉吉爾", "age": "30", "model": "OPN2", "shipDate": "2017-8-25", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0052039", "name": "花x妤", "store": "N021", "staff": "劉吉爾", "age": "33", "model": "XCEED PLAY 2", "shipDate": "2021-2-09", "nextVisit": "2026-06-30", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0186900", "name": "陳x麗", "store": "N021", "staff": "劉吉爾", "age": "67", "model": "MORE 1", "shipDate": "2022-8-24", "nextVisit": "2026-05-28", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0201406", "name": "洪x絜", "store": "N021", "staff": "劉芝言", "age": "10", "model": "OPN PLAY2", "shipDate": "2021-2-03", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0084056", "name": "余x益", "store": "N021", "staff": "蕭純聿", "age": "38", "model": "OPN1", "shipDate": "2019-5-18", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0125836", "name": "裝x文", "store": "N021", "staff": "蕭純聿", "age": "68", "model": "OPN3", "shipDate": "2019-8-13", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0048262", "name": "王x驊", "store": "N021", "staff": "蕭純聿", "age": "46", "model": "OPN S3", "shipDate": "2020-12-31", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0172858", "name": "劉x君", "store": "N021", "staff": "蕭純聿", "age": "69", "model": "MORE 1", "shipDate": "2022-3-03", "nextVisit": "2026-06-26", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0179980", "name": "曾x絹", "store": "N021", "staff": "蕭純聿", "age": "69", "model": "MORE 2", "shipDate": "2022-5-13", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0179357", "name": "龐x玲", "store": "N021", "staff": "蕭純聿", "age": "50", "model": "MORE 3", "shipDate": "2022-5-02", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0184970", "name": "吳x真", "store": "N021", "staff": "蕭純聿", "age": "69", "model": "MORE 3", "shipDate": "2022-7-30", "nextVisit": "2026-06-08", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0381434", "name": "詹x莉", "store": "N021", "staff": "顧翠華", "age": "66", "model": "OPN S3", "shipDate": "2020-11-13", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0215843", "name": "劉x蘭", "store": "N880-1", "staff": "林劭恩", "age": "64", "model": "MORE 3", "shipDate": "2022-4-21", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0183095", "name": "陳x華", "store": "N880-1", "staff": "林湘筑", "age": "61", "model": "MORE 3", "shipDate": "2022-7-11", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0163068", "name": "葉x伶", "store": "N880-1", "staff": "游智涵", "age": "51", "model": "CR40", "shipDate": "2021-12-25", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0167762", "name": "陳x玲", "store": "N880-1", "staff": "廖宣雅", "age": "67", "model": "SIYA 1", "shipDate": "2021-12-07", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0167759", "name": "林x嘉", "store": "N880-1", "staff": "蔡亞欣", "age": "48", "model": "MORE 1", "shipDate": "2021-12-02", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0172841", "name": "彭x莉", "store": "N880-1", "staff": "蕭純聿", "age": "53", "model": "MORE 1", "shipDate": "2022-3-24", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0161518", "name": "張x如", "store": "N880-1", "staff": "謝旻諺", "age": "59", "model": "OPN S3", "shipDate": "2021-8-31", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0163207", "name": "王x鳳", "store": "N880-1", "staff": "謝旻諺", "age": "67", "model": "CR40", "shipDate": "2021-9-23", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0184243", "name": "胡x文", "store": "N900-1", "staff": "吳碩修", "age": "38", "model": "MORE 3", "shipDate": "2022-7-23", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0215681", "name": "林x成", "store": "N900-1", "staff": "陳俊廷", "age": "47", "model": "MORE 3", "shipDate": "2022-3-15", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0215657", "name": "黃x瑾", "store": "N900-1", "staff": "陳俊廷", "age": "51", "model": "MORE 3", "shipDate": "2022-3-28", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0216048", "name": "林x亭", "store": "N900-1", "staff": "陳俊廷", "age": "48", "model": "MORE 3", "shipDate": "2022-5-16", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0190432", "name": "盧x彰", "store": "N900-1", "staff": "蔡亞欣", "age": "67", "model": "SONIC RADIANT 40", "shipDate": "2022-10-20", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0187718", "name": "周x郁", "store": "N900-1", "staff": "蔡亞欣", "age": "47", "model": "SONIC RADIANT 40", "shipDate": "2022-10-05", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0189449", "name": "林x雪", "store": "N900-1", "staff": "蔡亞欣", "age": "66", "model": "SONIC RADIANT 40", "shipDate": "2022-10-06", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0191882", "name": "鄭x葉", "store": "N900-1", "staff": "蔡亞欣", "age": "70", "model": "MORE 3", "shipDate": "2022-11-02", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0193445", "name": "陳x良", "store": "N900-1", "staff": "蔡亞欣", "age": "16", "model": "OPN PLAY2", "shipDate": "2022-12-01", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0196150", "name": "鄭x璘", "store": "N900-1", "staff": "蔡亞欣", "age": "64", "model": "MORE 3", "shipDate": "2022-12-29", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0177946", "name": "林x玲", "store": "N900-1", "staff": "蔡亞欣", "age": "66", "model": "MORE 3", "shipDate": "2022-4-15", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0177341", "name": "陳x文", "store": "N900-1", "staff": "蔡亞欣", "age": "17", "model": "OPN PLAY2", "shipDate": "2022-5-06", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0183843", "name": "曾x琪", "store": "N900-1", "staff": "蔡亞欣", "age": "47", "model": "EVOKE E-F2", "shipDate": "2022-7-12", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0183919", "name": "羅x燕", "store": "N900-1", "staff": "蔡亞欣", "age": "58", "model": "EVOKE E-F2", "shipDate": "2022-7-14", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0186616", "name": "林x哲", "store": "N900-1", "staff": "蔡亞欣", "age": "66", "model": "SONIC RADIANT 40", "shipDate": "2022-8-29", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0187959", "name": "汪x英", "store": "N900-1", "staff": "蔡亞欣", "age": "57", "model": "SONIC RADIANT 40", "shipDate": "2022-9-13", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0194972", "name": "林x瓊", "store": "N901-1", "staff": "林劭恩", "age": "60", "model": "MORE 3", "shipDate": "2022-12-19", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0195486", "name": "決x祥", "store": "N901-1", "staff": "林劭恩", "age": "65", "model": "SONIC RADIANT 40", "shipDate": "2022-12-26", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0175729", "name": "李x蘋", "store": "N901-1", "staff": "蔡亞欣", "age": "59", "model": "MORE 3", "shipDate": "2022-4-14", "nextVisit": "2026-05-27", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0147688", "name": "劉x吟", "store": "N108", "staff": "黃鈴鈞", "age": "30", "model": "OPN PLAY2", "shipDate": "2020-09-09", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0121866", "name": "盛x餘", "store": "N297", "staff": "王鈺捷", "age": "67", "model": "OPN1", "shipDate": "2017-4-29", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0086563", "name": "蔡x澈", "store": "N297", "staff": "王鈺捷", "age": "10", "model": "SENSEI SP", "shipDate": "2018-04-01", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0192334", "name": "廖x君", "store": "N297", "staff": "吳昱瑩", "age": "51", "model": "SONIC RADIANT 40", "shipDate": "2022-12-23", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0194883", "name": "林x登", "store": "N297", "staff": "吳昱瑩", "age": "52", "model": "SONIC RADIANT 60", "shipDate": "2022-12-24", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0184977", "name": "謝x麟", "store": "N297", "staff": "吳昱瑩", "age": "62", "model": "XCEED 3", "shipDate": "2022-9-12", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0106062", "name": "許x嘉", "store": "N297", "staff": "吳碩修", "age": "60", "model": "OPN2", "shipDate": "2018-6-20", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0134750", "name": "謝x旺", "store": "N297", "staff": "吳碩修", "age": "68", "model": "CR40", "shipDate": "2019-12-24", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0124459", "name": "林x雄", "store": "N297", "staff": "吳碩修", "age": "63", "model": "CR40", "shipDate": "2019-08-25", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0127836", "name": "陳x帝", "store": "N297", "staff": "吳碩修", "age": "25", "model": "OPN2", "shipDate": "2019-09-02", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0205278", "name": "張x甄", "store": "N297", "staff": "吳碩修", "age": "67", "model": "CR40", "shipDate": "2020-12-18", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0146925", "name": "楊x婷", "store": "N297", "staff": "吳碩修", "age": "50", "model": "XCEED PLAY 2", "shipDate": "2020-7-17", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0168884", "name": "蔡x倫", "store": "N297", "staff": "吳碩修", "age": "17", "model": "CR40", "shipDate": "2021-12-08", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0207995", "name": "羅x宏", "store": "N297", "staff": "吳碩修", "age": "63", "model": "OPN S3", "shipDate": "2021-02-02", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0209715", "name": "昌x緯", "store": "N297", "staff": "吳碩修", "age": "9", "model": "OPN PLAY2", "shipDate": "2021-5-16", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0207763", "name": "許x祐", "store": "N297", "staff": "吳碩修", "age": "6", "model": "XCEED PLAY 2", "shipDate": "2021-5-16", "nextVisit": "2026-05-27", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0190000", "name": "楊x芬", "store": "N297", "staff": "吳碩修", "age": "43", "model": "OPN S2", "shipDate": "2022-11-17", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0177686", "name": "陳x正", "store": "N297", "staff": "吳碩修", "age": "62", "model": "CR40", "shipDate": "2022-6-23", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0179534", "name": "黃x儒", "store": "N297", "staff": "吳碩修", "age": "42", "model": "MORE 3", "shipDate": "2022-7-23", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0077712", "name": "林x", "store": "N297", "staff": "林劭恩", "age": "36", "model": "OPN1", "shipDate": "2017-01-14", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0143524", "name": "李x榮", "store": "N297", "staff": "林劭恩", "age": "60", "model": "SIYA 1", "shipDate": "2020-05-06", "nextVisit": "2026-07-09", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0189383", "name": "林x桂", "store": "N297", "staff": "林劭恩", "age": "63", "model": "SONIC RADIANT 60", "shipDate": "2022-10-13", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0109768", "name": "林x丞", "store": "N297", "staff": "林瑀婕", "age": "15", "model": "OPN PLAY1", "shipDate": "2020-10-24", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0082791", "name": "胡x杰", "store": "N297", "staff": "徐恩平", "age": "13", "model": "SENSEI", "shipDate": "2019-11-04", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0209387", "name": "陳x辰", "store": "N297", "staff": "翁靜涓", "age": "61", "model": "OPN3", "shipDate": "2021-4-16", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0100691", "name": "唐x希", "store": "N297", "staff": "許如汶", "age": "13", "model": "SENSEI", "shipDate": "2018-02-13", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0116304", "name": "王x均", "store": "N297", "staff": "專如汶", "age": "20", "model": "OPN3", "shipDate": "2019-2-28", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0133854", "name": "李x寧", "store": "N297", "staff": "許如汶", "age": "11", "model": "XCEED 3", "shipDate": "2021-3-15", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0319435", "name": "袁x芳", "store": "N297", "staff": "許如汶", "age": "59", "model": "MORE 2", "shipDate": "2022-1-08", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0195407", "name": "陳x靜", "store": "N297", "staff": "許如汶", "age": "63", "model": "SONIC RADIANT 60", "shipDate": "2022-12-21", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0172651", "name": "郭x志", "store": "N297", "staff": "許如汶", "age": "63", "model": "CR40", "shipDate": "2022-3-30", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0110939", "name": "賈x道", "store": "N297", "staff": "郭瑋", "age": "66", "model": "OPN1", "shipDate": "2018-11-19", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0126640", "name": "江x書", "store": "N297", "staff": "陳宛妤", "age": "18", "model": "MORE 3", "shipDate": "2021-11-21", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0126649", "name": "江x喬", "store": "N297", "staff": "陳宛妤", "age": "10", "model": "OPN PLAY2", "shipDate": "2021-12-19", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0146866", "name": "劉x佑", "store": "N297", "staff": "陳玥璇", "age": "17", "model": "OPN PLAY1", "shipDate": "2020-7-24", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0100138", "name": "古x斈", "store": "N297", "staff": "陳玥璇", "age": "9", "model": "OPN PLAY2", "shipDate": "2021-4-06", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0214469", "name": "周x鈞", "store": "N297", "staff": "陳玥璇", "age": "38", "model": "XCEED PLAY 2", "shipDate": "2022-01-15", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0194892", "name": "葉x賢", "store": "N297", "staff": "陳玥璇", "age": "51", "model": "MORE 2", "shipDate": "2022-12-25", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0215149", "name": "陳x杰", "store": "N297", "staff": "陳玥璇", "age": "61", "model": "MORE 3", "shipDate": "2022-3-02", "nextVisit": "2026-07-07", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0143095", "name": "馬x軍", "store": "N297", "staff": "游瑟焄", "age": "49", "model": "SIYA 1", "shipDate": "2020-5-22", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0179006", "name": "鄭x軒", "store": "N297", "staff": "黃紹恩", "age": "5", "model": "OPN PLAY2", "shipDate": "2022-5-31", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0106535", "name": "吳x穎", "store": "N297", "staff": "吳x穎", "age": "36", "model": "CR40", "shipDate": "2017-12-15", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0131856", "name": "王x銘", "store": "N297", "staff": "黃鈴鈞", "age": "64", "model": "OPN2", "shipDate": "2019-12-11", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0212745", "name": "許x玲", "store": "N297", "staff": "黃鈴鈞", "age": "59", "model": "OPN S3", "shipDate": "2021-10-29", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0165186", "name": "陳x娟", "store": "N297", "staff": "黃鈴鈞", "age": "64", "model": "MORE 1", "shipDate": "2021-12-22", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0169995", "name": "黃x蓁", "store": "N297", "staff": "黃鈴鈞", "age": "48", "model": "MORE 3", "shipDate": "2021-12-24", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0158074", "name": "吳x在", "store": "N297", "staff": "黃鈴鈞", "age": "65", "model": "OPN S2", "shipDate": "2021-5-05", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0163393", "name": "梁x瑋", "store": "N297", "staff": "黃鈴鈞", "age": "8", "model": "XCEED PLAY 1", "shipDate": "2022-3-22", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0177207", "name": "黃x怡", "store": "N297", "staff": "黃鈴鈞", "age": "51", "model": "MORE 3", "shipDate": "2022-4-3", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0188565", "name": "釋x璿", "store": "N297", "staff": "黃鈴鈞", "age": "70", "model": "MORE 3", "shipDate": "2022-09-16", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0177899", "name": "吳x昌", "store": "N297", "staff": "黃鈴鈞", "age": "70", "model": "MORE 2", "shipDate": "2022-09-23", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0085582", "name": "戴x真", "store": "N297", "staff": "葉純妤", "age": "58", "model": "OPN S3", "shipDate": "2020-1-20", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0085117", "name": "李x慧", "store": "N297", "staff": "葉純妤", "age": "9", "model": "OPN PLAY2", "shipDate": "2020-5-09", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0083942", "name": "蘇x芳", "store": "N297", "staff": "葉淳妤", "age": "68", "model": "NERA2", "shipDate": "2017-7-12", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0201335", "name": "胡x芠", "store": "N297", "staff": "葉淳妤", "age": "12", "model": "OPN PLAY2", "shipDate": "2020-10-17", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA011495", "name": "黃x翔", "store": "N297", "staff": "葉淳妤", "age": "6", "model": "XCEED PLAY 2", "shipDate": "2020-4-12", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0209318", "name": "陳x贊", "store": "N297", "staff": "葉淳妤", "age": "53", "model": "OPN S2", "shipDate": "2021-4-09", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0187237", "name": "楊x閎", "store": "N297", "staff": "葉淳妤", "age": "42", "model": "SIYA 1", "shipDate": "2022-12-11", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0196466", "name": "張x賢", "store": "N297", "staff": "葉淳妤", "age": "50", "model": "XCEED PLAY 2", "shipDate": "2022-12-29", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0215532", "name": "蔡x忠", "store": "N297", "staff": "葉淳妤", "age": "59", "model": "MORE 3", "shipDate": "2022-2-14", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0171616", "name": "謝x益", "store": "N297", "staff": "葉淳妤", "age": "67", "model": "MORE 3", "shipDate": "2022-3-03", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0214195", "name": "林x玲", "store": "N297", "staff": "葉淳妤", "age": "67", "model": "MORE 2", "shipDate": "2022-4-27", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0100772", "name": "劉x祿", "store": "N297", "staff": "無", "age": "56", "model": "OPN2", "shipDate": "2018-3-03", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0142094", "name": "陳x芩", "store": "N021", "staff": "無", "age": "56", "model": "OPN S1", "shipDate": "2020-4-17", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0216014", "name": "黃x萍", "store": "N297", "staff": "無", "age": "32", "model": "MORE 2", "shipDate": "2022-4-28", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0216452", "name": "陳x螢", "store": "N297", "staff": "無", "age": "26", "model": "MORE 2", "shipDate": "2022-6-21", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0047466", "name": "林x華", "store": "N297", "staff": "蔡亞欣", "age": "60", "model": "OPN1", "shipDate": "2017-2-10", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0023397", "name": "簡x齊", "store": "N297", "staff": "蔡亞欣", "age": "28", "model": "OPN3", "shipDate": "2018-8-22", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0111394", "name": "張x宇", "store": "N297", "staff": "蔡亞欣", "age": "37", "model": "OPN3", "shipDate": "2019-1-22", "nextVisit": "2026-08-11", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0136086", "name": "李x宇", "store": "N297", "staff": "蔡亞欣", "age": "11", "model": "OPN3", "shipDate": "2020-2-19", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0140998", "name": "陳x瑄", "store": "N297", "staff": "蔡亞欣", "age": "55", "model": "OPN S1", "shipDate": "2020-4-19", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0148738", "name": "王x祺", "store": "N297", "staff": "蔡亞欣", "age": "10", "model": "OPN PLAY2", "shipDate": "2020-8-23", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0206065", "name": "蔡x軒", "store": "N297", "staff": "蔡亞欣", "age": "10", "model": "OPN PLAY2", "shipDate": "2021-1-24", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0167632", "name": "林x源", "store": "N297", "staff": "蔡亞欣", "age": "67", "model": "SIYA 1", "shipDate": "2021-11-26", "nextVisit": "2026-08-07", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0208132", "name": "蘇x安", "store": "N297", "staff": "蔡亞欣", "age": "20", "model": "OPN PLAY2", "shipDate": "2021-3-27", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0206429", "name": "王x博", "store": "N297", "staff": "蔡亞欣", "age": "9", "model": "XCEED PLAY 2", "shipDate": "2021-3-08", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0165791", "name": "林x嬳", "store": "N297", "staff": "蔡亞欣", "age": "11", "model": "OPN PLAY2", "shipDate": "2022-1-24", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0184712", "name": "高x玉", "store": "N297", "staff": "蔡亞欣", "age": "60", "model": "MORE 3", "shipDate": "2022-8-17", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0184050", "name": "郭x群", "store": "N297", "staff": "蔡亞欣", "age": "65", "model": "MORE 1", "shipDate": "2022-8-19", "nextVisit": "2026-05-15", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}, {"id": "HA0128646", "name": "孫x仲", "store": "N297", "staff": "無", "age": "62", "model": "NERA2", "shipDate": "2018-3-28", "nextVisit": "", "notes": "", "contactStaff": "", "contactDate": "", "status": "未聯繫", "opportunity": "", "isTrial2026": false, "trialResult": "", "trialOtherReason": ""}];
+
+        // 門市與人員、試聽選項配置
+        const uniqueStores = ["N011", "N021", "N297", "N900-1", "N901-1", "N880-1", "N107", "N108", "N115"]; 
+        const staffList = ["吳碩修", "蔡亞欣", "郭瑋", "林劭恩", "江浩誠", "顧翠華", "詹婷婷", "許懿芬", "黃鈴鈞", "葉淳妤", "許如汶", "劉吉爾", "葉純妤", "陳玥璇"];
+        const statusList = ["未聯繫", "已預約進店", "未接/語音", "已換機", "婉拒進店"];
+        const trialResultList = ["買斷/訂閱", "新機佳等舊機壞", "新機普通", "新機不習慣", "其他"];
+
+        let currentLevel = '全部';
+        let currentStatus = '所有狀態';
+        let currentTrialFilter = '所有結果'; // 記錄當前試聽篩選條件
+        let currentOpportunity = '所有商機';
+        let currentSelectedStore = null;
+        let weekStartStr = '';
+        let weekEndStr = '';
+        
+        let currentPage = 1;
+        const itemsPerPage = 20;
+        let filteredCustomers = [];
+
+        // 智慧分級
+        function runSmartSegmentation() {
+            customerData.forEach(c => {
+                if (c.status === '婉拒進店' || (c.notes && c.notes.includes("不願配戴"))) {
+                    c.level = "⚠️【抗拒配戴類】";
+                } else if (c.age && c.age !== '未提供' && !isNaN(parseInt(c.age)) && parseInt(c.age) <= 20) {
+                    c.level = "🎒【學齡成長類】";
+                } else {
+                    const parts = c.shipDate ? c.shipDate.split('-') : [];
+                    const year = parts.length > 0 ? parseInt(parts[0]) : 2022;
+                    if (!isNaN(year) && year <= 2020) {
+                        c.level = "🔥【升級黃金期】";
+                    } else {
+                        c.level = "⏱️【保養關懷期】";
+                    }
+                }
+                if (!c.opportunity) c.opportunity = '';
+            });
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('toastNotification');
+                toast.style.opacity = '1';
+                setTimeout(() => { toast.style.opacity = '0'; }, 1800);
+            });
+        }
+
+        function switchTab(tabNum) {
+            const btn1 = document.getElementById('tab1-btn');
+            const btn2 = document.getElementById('tab2-btn');
+            const content1 = document.getElementById('tab1-content');
+            const content2 = document.getElementById('tab2-content');
+
+            if (tabNum === 1) {
+                btn1.className = "border-b-2 border-[#788896] text-[#788896] py-3 px-2 inline-flex items-center text-xs md:text-sm font-bold shrink-0 transition-all";
+                btn2.className = "border-b-2 border-transparent text-[#7e878c] hover:text-[#5a6266] py-3 px-2 inline-flex items-center text-xs md:text-sm font-medium shrink-0 transition-all";
+                content1.classList.remove('hidden');
+                content2.classList.add('hidden');
+            } else {
+                btn2.className = "border-b-2 border-[#788896] text-[#788896] py-3 px-2 inline-flex items-center text-xs md:text-sm font-bold shrink-0 transition-all";
+                btn1.className = "border-b-2 border-transparent text-[#7e878c] hover:text-[#5a6266] py-3 px-2 inline-flex items-center text-xs md:text-sm font-medium shrink-0 transition-all";
+                content1.classList.add('hidden');
+                content2.classList.remove('hidden');
+                calculateDataAnalytics();
+            }
+        }
+
+        function calculateDataAnalytics() {
+            let totalCount = customerData.length;
+            let contactedCount = 0, inviteCount = 0, closedCount = 0;
+            const statusCounts = {};
+            statusList.forEach(s => statusCounts[s] = 0);
+
+            // 跨門市與人員數據 analysis 框架
+            const storeStats = {};
+            uniqueStores.forEach(st => storeStats[st] = { total: 0, contacted: 0, invited: 0 });
+
+            const staffStats = {};
+            staffList.forEach(sf => staffStats[sf] = { assigned: 0, contacted: 0, invited: 0, closed: 0 });
+
+            // 試聽結果計數器與基礎統計邏輯框架
+            let totalTrials = 0;
+            const trialCounts = {};
+            trialResultList.forEach(r => trialCounts[r] = 0);
+            trialCounts["未選擇結果"] = 0;
+
+            customerData.forEach(c => {
+                if (c.status !== '未聯繫') contactedCount++;
+                if (c.status === '已預約進店') inviteCount++;
+                if (c.status === '已換機' || c.trialResult === '買斷/訂閱') closedCount++;
+                if (statusCounts[c.status] !== undefined) statusCounts[c.status]++;
+
+                if (storeStats[c.store]) {
+                    storeStats[c.store].total++;
+                    if (c.status !== '未聯繫') storeStats[c.store].contacted++;
+                    if (c.status === '已預約進店') storeStats[c.store].invited++;
+                }
+
+                if (c.contactStaff && staffStats[c.contactStaff]) {
+                    staffStats[c.contactStaff].assigned++;
+                    if (c.status !== '未聯繫') staffStats[c.contactStaff].contacted++;
+                    if (c.status === '已預約進店') staffStats[c.contactStaff].invited++;
+                    if (c.status === '已換機' || c.trialResult === '買斷/訂閱') staffStats[c.contactStaff].closed++;
+                }
+
+                // 進行試聽指標的資料加總篩選
+                if (c.isTrial2026) {
+                    totalTrials++;
+                    if (c.trialResult && trialCounts[c.trialResult] !== undefined) {
+                        trialCounts[c.trialResult]++;
+                    } else {
+                        trialCounts["未選擇結果"]++;
+                    }
+                }
+            });
+
+            // 渲染統計指標
+            document.getElementById('stat_contactPct').innerText = totalCount > 0 ? Math.round((contactedCount / totalCount) * 100) + '%' : '0%';
+            document.getElementById('stat_contactBar').style.width = totalCount > 0 ? Math.round((contactedCount / totalCount) * 100) + '%' : '0%';
+            document.getElementById('stat_invitePct').innerText = totalCount > 0 ? Math.round((inviteCount / totalCount) * 100) + '%' : '0%';
+            document.getElementById('stat_inviteBar').style.width = totalCount > 0 ? Math.round((inviteCount / totalCount) * 100) + '%' : '0%';
+            document.getElementById('stat_closedPct').innerText = totalCount > 0 ? Math.round((closedCount / totalCount) * 100) + '%' : '0%';
+            document.getElementById('stat_closedBar').style.width = totalCount > 0 ? Math.round((closedCount / totalCount) * 100) + '%' : '0%';
+
+            // 追蹤狀態佔比
+            let statusHtml = '';
+            statusList.forEach(status => {
+                const count = statusCounts[status] || 0;
+                const pct = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+                statusHtml += `
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-gray-600 font-medium">${status}</span>
+                            <span class="text-gray-400">${count} 筆 (${pct}%)</span>
+                        </div>
+                        <div class="w-full bg-gray-50 h-1.5 rounded-full overflow-hidden border border-gray-100">
+                            <div class="bg-[#788896] h-full" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('statusProportionContainer').innerHTML = statusHtml;
+
+            // 各門市成果指標
+            let storeHtml = '';
+            uniqueStores.forEach(storeGroup => {
+                const stats = storeStats[storeGroup] || { total: 0, contacted: 0, invited: 0 };
+                const pct = stats.total > 0 ? Math.round((stats.contacted / stats.total) * 100) : 0;
+                storeHtml += `
+                    <div class="p-2.5 bg-white/40 rounded-xl border border-[#f0eee6] space-y-1">
+                        <div class="flex justify-between text-[11px] font-bold text-gray-700">
+                            <span>${storeGroup} 門市</span>
+                            <span>聯繫率 ${pct}% (${stats.contacted}/${stats.total})</span>
+                        </div>
+                        <div class="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-[#788896] h-full" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('weeklyStoreStatsContainer').innerHTML = storeHtml;
+
+            // 處理並渲染試聽成果統計指標面板
+            document.getElementById('stat_totalTrials').innerText = totalTrials;
+            let trialHtml = '';
+            const displayTrialResults = [...trialResultList];
+            if (trialCounts["未選擇結果"] > 0) {
+                displayTrialResults.push("未選擇結果");
+            }
+            displayTrialResults.forEach(res => {
+                const count = trialCounts[res] || 0;
+                const pct = totalTrials > 0 ? Math.round((count / totalTrials) * 100) : 0;
+                trialHtml += `
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-gray-600 font-medium">${res}</span>
+                            <span class="text-gray-400">${count} 筆 (${pct}%)</span>
+                        </div>
+                        <div class="w-full bg-gray-50 h-1.5 rounded-full overflow-hidden border border-gray-100">
+                            <div class="bg-[#839281] h-full" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('trialResultProportionContainer').innerHTML = trialHtml;
+
+            // 門市同仁聯繫進度統計
+            let staffHtml = '';
+            staffList.forEach(staff => {
+                const stats = staffStats[staff] || { assigned: 0, contacted: 0, invited: 0, closed: 0 };
+                const contactPct = stats.assigned > 0 ? Math.round((stats.contacted / stats.assigned) * 100) : 0;
+                staffHtml += `
+                    <div class="p-3 bg-white border border-[#e3e1da] rounded-xl shadow-xs space-y-1.5 morandi-card">
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-1">
+                            <span class="font-bold text-gray-800">${staff}</span>
+                            <span class="text-[10px] bg-slate-50 text-gray-500 px-1.5 py-0.5 rounded border border-gray-100">負責 ${stats.assigned} 筆</span>
+                        </div>
+                        <div class="space-y-1 text-[11px]">
+                            <div class="flex justify-between text-gray-500">
+                                <span>已聯繫率:</span>
+                                <span class="font-bold text-gray-700">${contactPct}% (${stats.contacted}筆)</span>
+                            </div>
+                            <div class="flex justify-between text-gray-500">
+                                <span>預約 / 成交:</span>
+                                <span class="font-medium text-gray-700"><span class="text-[#839281] font-bold">${stats.invited}</span> / <span class="text-[#b8837e] font-bold">${stats.closed}</span> 筆</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('staffProgressContainer').innerHTML = staffHtml;
+
+            // 高商機精耕名單庫
+            const highOppList = customerData.filter(c => c.opportunity === '高');
+            document.getElementById('highOppCount').innerText = highOppList.length;
+            let hHtml = '';
+            highOppList.forEach(c => {
+                let badgeIcon = "⏱️", badgeColor = "text-[#839281] bg-[#f5f7f4] border-[#d6ded4]";
+                if(c.level && c.level.includes("升級黃金")) { badgeIcon = "🔥"; badgeColor = "text-[#b8837e] bg-[#fcf7f6] border-[#ebd2d0]"; }
+                else if(c.level && c.level.includes("抗拒配戴")) { badgeIcon = "⚠️"; badgeColor = "text-[#bda286] bg-[#faf7f3] border-[#e6ded5]"; }
+                else if(c.level && c.level.includes("學齡成長")) { badgeIcon = "🎒"; badgeColor = "text-[#8e8299] bg-[#f6f4f7] border-[#dad4e0]"; }
+
+                hHtml += `
+                    <tr class="hover:bg-rose-50/20 border-b border-gray-100">
+                        <td class="py-2 px-1 text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full border font-bold text-xs shadow-sm ${badgeColor}">${badgeIcon}</span></td>
+                        <td class="py-2 px-1 font-bold">
+                            <div>${c.name} (${c.age}歲)</div>
+                            <div class="text-[10px] text-indigo-600 font-mono">${c.id}</div>
+                            <div class="text-[10px] text-emerald-700 font-medium mt-0.5">出貨日: ${c.shipDate}</div>
+                        </td>
+                        <td class="py-2 px-1 text-center font-medium">${c.store} / ${c.staff}</td>
+                        <td class="py-2 px-1 truncate text-gray-600 text-[10px]" title="${c.model}">${c.model}</td>
+                        <td class="py-2 px-1 text-center"><span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-bold border border-amber-100">${c.status}</span></td>
+                    </tr>
+                `;
+            });
+            document.getElementById('highOppTableBody').innerHTML = hHtml || '<tr><td colspan="5" class="text-center py-4 text-gray-400">目前暫無高商機追蹤名單</td></tr>';
+        }
+
+        function initWeekRange() {
+            const today = new Date();
+            const currentDay = today.getDay(); 
+            const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+            const monday = new Date(today); monday.setDate(today.getDate() + distanceToMonday);
+            const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+            const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            weekStartStr = formatDate(monday); weekEndStr = formatDate(sunday);
+            document.getElementById('weekRangeText').innerText = `${weekStartStr} ~ ${weekEndStr}`;
+        }
+
+        function renderLeaderboard() {
+            const container = document.getElementById('storeCardsContainer');
+            let cardsHtml = '';
+            
+            uniqueStores.forEach(storeGroup => {
+                let totalAssigned = 0, weeklyContact = 0, inviteCount = 0;
+                customerData.forEach(c => {
+                    if (c.store === storeGroup) {
+                        totalAssigned++;
+                        if (c.status !== '未聯繫' && c.contactDate) weeklyContact++;
+                        if (c.status === '已預約進店') inviteCount++;
+                    }
+                });
+
+                const isSelected = currentSelectedStore === storeGroup;
+                const cardBorderClass = isSelected ? 'border-2 border-[#788896] ring-4 ring-[#788896]/10 bg-white shadow-sm' : 'border-[#e3e1da] bg-white/90 hover:border-gray-300';
+
+                cardsHtml += `
+                    <div onclick="selectStore('${storeGroup}')" class="border rounded-xl p-2.5 shadow-xs space-y-1 relative overflow-hidden cursor-pointer transition-all ${cardBorderClass}">
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-1">
+                            <span class="font-bold text-[#3d454a] text-xs font-mono">${storeGroup}</span>
+                            <span class="text-[9px] text-[#7e878c] bg-gray-50 px-1.5 rounded-sm">共 ${totalAssigned} 筆</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1 text-[10px] pt-1 text-center">
+                            <div class="bg-slate-50/60 p-1 rounded-md border border-[#f0eee6]">
+                                <div class="text-[#788896] font-bold">${weeklyContact} 筆</div>
+                                <div class="text-[#9ba3a8] text-[9px] scale-90">已回訪</div>
+                            </div>
+                            <div class="bg-slate-50/60 p-1 rounded-md border border-[#f0eee6]">
+                                <div class="text-[#839281] font-bold">${inviteCount} 筆</div>
+                                <div class="text-[#9ba3a8] text-[9px] scale-90">已預約</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = cardsHtml;
+        }
+
+        function updateTableAndStats(keepPage = false) {
+            let totalProgress = 0;
+            customerData.forEach(c => { if (c.status !== '未聯繫') totalProgress++; });
+
+            document.getElementById('totalCountHeader').innerText = customerData.length;
+            document.getElementById('totalCountFooter').innerText = customerData.length;
+            document.getElementById('totalProgressCount').innerText = totalProgress;
+
+            filteredCustomers = customerData.filter(c => {
+                if (currentLevel !== '全部' && c.level !== currentLevel) return false;
+                if (currentStatus !== '所有狀態' && c.status !== currentStatus) return false;
+                if (currentOpportunity === '未評估' && c.opportunity !== '') return false;
+                if (currentOpportunity !== '所有商機' && currentOpportunity !== '未評估' && c.opportunity !== currentOpportunity) return false;
+                if (currentSelectedStore !== null && c.store !== currentSelectedStore) return false;
+                
+                // 試聽結果的過濾核心邏輯
+                if (currentTrialFilter !== '所有結果') {
+                    if (currentTrialFilter === '僅顯示有試聽' && !c.isTrial2026) return false;
+                    if (currentTrialFilter === '僅顯示未試聽' && c.isTrial2026) return false;
+                    if (currentTrialFilter !== '僅顯示有試聽' && currentTrialFilter !== '僅顯示未試聽') {
+                        if (!c.isTrial2026 || c.trialResult !== currentTrialFilter) return false;
+                    }
+                }
+                return true;
+            });
+
+            document.getElementById('filteredCount').innerText = filteredCustomers.length;
+            if (!keepPage) currentPage = 1;
+
+            renderPaginationControls();
+            renderTablePage();
+            calculateDataAnalytics();
+        }
+
+        function renderPaginationControls() {
+            const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            document.getElementById('totalPagesText').innerText = totalPages;
+            
+            let selectHtml = '';
+            for (let i = 1; i <= totalPages; i++) {
+                selectHtml += `<option value="${i}" ${i === currentPage ? 'selected' : ''}>${i}</option>`;
+            }
+            document.getElementById('pageSelect').innerHTML = selectHtml;
+            document.getElementById('prevPageBtn').disabled = (currentPage === 1);
+            document.getElementById('nextPageBtn').disabled = (currentPage === totalPages);
+
+            const startIdx = filteredCustomers.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+            const endIdx = Math.min(currentPage * itemsPerPage, filteredCustomers.length);
+            document.getElementById('paginationInfo').innerText = `顯示第 ${startIdx} - ${endIdx} 筆，共 ${filteredCustomers.length} 筆符合條件`;
+        }
+
+        function renderTablePage() {
+            const tbody = document.getElementById('customerTableBody');
+            const mobileList = document.getElementById('customerMobileList');
+            
+            if (filteredCustomers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center py-6 text-gray-400">沒有符合當前過濾條件的精耕客戶資料</td></tr>`;
+                mobileList.innerHTML = `<div class="text-center py-6 text-gray-400">沒有符合當前過濾條件的精耕客戶資料</div>`;
+                return;
+            }
+
+            const startIdx = (currentPage - 1) * itemsPerPage;
+            const pageData = filteredCustomers.slice(startIdx, startIdx + itemsPerPage);
+            
+            let tableHtml = '';
+            let mobileHtml = '';
+
+            pageData.forEach((customer) => {
+                let badgeIcon = "⏱️", badgeColor = "text-[#839281] bg-[#f5f7f4] border-[#d6ded4]";
+                if(customer.level.includes("升級黃金")) { badgeIcon = "🔥"; badgeColor = "text-[#b8837e] bg-[#fcf7f6] border-[#ebd2d0]"; }
+                else if(customer.level.includes("抗拒配戴")) { badgeIcon = "⚠️"; badgeColor = "text-[#bda286] bg-[#faf7f3] border-[#e6ded5]"; }
+                else if(customer.level.includes("學齡成長")) { badgeIcon = "🎒"; badgeColor = "text-[#8e8299] bg-[#f6f4f7] border-[#dad4e0]"; }
+
+                let statusOptions = `<option value="未聯繫" ${customer.status === '未聯繫' ? 'selected' : ''}>未聯繫</option>`;
+                statusList.filter(s => s !== '未聯繫').forEach(s => {
+                    statusOptions += `<option value="${s}" ${customer.status === s ? 'selected' : ''}>${s}</option>`;
+                });
+
+                let staffOptions = `<option value="" ${customer.contactStaff === '' ? 'selected' : ''}>請選擇同仁</option>`;
+                staffList.forEach(staff => {
+                    staffOptions += `<option value="${staff}" ${customer.contactStaff === staff ? 'selected' : ''}>${staff}</option>`;
+                });
+
+                let trialResultOptions = `<option value="" ${customer.trialResult === '' ? 'selected' : ''}>請選擇結果</option>`;
+                trialResultList.forEach(res => {
+                    trialResultOptions += `<option value="${res}" ${customer.trialResult === res ? 'selected' : ''}>${res}</option>`;
+                });
+
+                const opp = customer.opportunity || '';
+                let oppOptions = `<option value="" ${opp === '' ? 'selected' : ''}>-</option><option value="高" ${opp === '高' ? 'selected' : ''}>高</option><option value="中" ${opp === '中' ? 'selected' : ''}>中</option><option value="低" ${opp === '低' ? 'selected' : ''}>低</option>`;
+
+                let notesInputHtml = '';
+                if (customer.status === '婉拒進店') {
+                    notesInputHtml = `<input type="text" placeholder="請輸入婉拒原因" value="${customer.notes}" onchange="updateCustomerField('${customer.id}', 'notes', this.value)" class="w-full mt-1 border border-[#ba9e9b] rounded px-1 py-0.5 text-[10px] bg-[#fcf7f6] focus:outline-none" />`;
+                }
+
+                let trialOtherInputHtml = '';
+                if (customer.trialResult === '其他') {
+                    trialOtherInputHtml = `<input type="text" placeholder="請輸入其他原因" value="${customer.trialOtherReason || ''}" onchange="updateCustomerField('${customer.id}', 'trialOtherReason', this.value)" class="w-full mt-1 border border-[#788896] rounded px-1 py-0.5 text-[10px] bg-white focus:outline-none" />`;
+                }
+
+                let trialBtnClass = "bg-[#e8e6de] text-gray-600 border border-gray-300";
+                let trialBtnText = "未試";
+                if (customer.isTrial2026) {
+                    trialBtnClass = "bg-[#839281] text-white font-bold border border-[#768574]";
+                    trialBtnText = "試聽";
+                }
+
+                // 1. 桌機表格
+                tableHtml += `
+                    <tr class="hover:bg-slate-50/40 transition-colors">
+                        <td class="py-3 px-1 text-center">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full border font-bold text-xs shadow-xs ${badgeColor}">${badgeIcon}</span>
+                        </td>
+                        <td class="py-3 px-1 whitespace-normal break-words">
+                            <div class="font-bold text-gray-900">${customer.name} <span class="font-normal text-gray-400 text-[10px]">${customer.age}歲</span></div>
+                            <div class="text-[10px] text-[#788896] font-mono flex items-center mt-0.5">
+                                <span class="select-all">${customer.id}</span>
+                                <button onclick="copyToClipboard('${customer.id}')" class="material-icons text-[11px] text-gray-400 ml-1 hover:text-[#788896] focus:outline-none" title="複製客戶編號">content_copy</button>
+                            </div>
+                        </td>
+                        <td class="py-3 px-1 text-center font-medium text-slate-700 whitespace-normal">${customer.store}<br><span class="text-gray-400 font-normal text-[10px]">${customer.staff}</span></td>
+                        <td class="py-3 px-1 text-slate-800 font-semibold text-[11px] whitespace-normal break-words" title="${customer.model}">${customer.model}</td>
+                        <td class="py-3 px-1 text-center text-gray-600 font-mono font-medium">${customer.shipDate}</td>
+                        
+                        <td class="py-3 px-1 text-center">
+                            <select onchange="updateCustomerField('${customer.id}', 'contactStaff', this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-1.5 py-1 text-[11px] text-gray-700 cursor-pointer focus:outline-none">${staffOptions}</select>
+                        </td>
+                        <td class="py-3 px-1 text-center">
+                            <input type="date" value="${customer.contactDate}" onchange="updateCustomerField('${customer.id}', 'contactDate', this.value)" class="border border-gray-300 rounded-xl px-1 py-0.5 text-[10px] text-center w-full focus:outline-none" />
+                        </td>
+                        <td class="py-3 px-1 text-center">
+                            <select onchange="updateCustomerField('${customer.id}', 'status', this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-1.5 py-1 text-[11px] font-medium text-gray-700 focus:outline-none">${statusOptions}</select>
+                            ${notesInputHtml}
+                        </td>
+                        <td class="py-3 px-1 text-center">
+                            <input type="date" value="${customer.nextVisit}" onchange="updateCustomerField('${customer.id}', 'nextVisit', this.value)" class="border border-gray-300 rounded-xl px-1 py-0.5 text-[10px] text-center w-full focus:outline-none" />
+                        </td>
+                        <td class="py-3 px-1 text-center">
+                            <button onclick="toggleCustomerBool('${customer.id}', 'isTrial2026')" class="px-2 py-1 rounded-xl text-[10px] transition shadow-xs w-full ${trialBtnClass}">${trialBtnText}</button>
+                        </td>
+                        <td class="py-3 px-1">
+                            <select onchange="updateCustomerField('${customer.id}', 'trialResult', this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-1.5 py-1 text-[11px] text-gray-700 focus:outline-none">${trialResultOptions}</select>
+                            ${trialOtherInputHtml}
+                        </td>
+                        <td class="py-3 px-1 text-center">
+                            <select onchange="updateCustomerField('${customer.id}', 'opportunity', this.value)" class="w-full bg-white border border-gray-300 rounded p-0.5 text-[11px] font-bold text-center text-gray-700 focus:outline-none">${oppOptions}</select>
+                        </td>
+                    </tr>
+                `;
+
+                // 2. 手機端清單
+                mobileHtml += `
+                    <div class="p-4 space-y-3 border-b border-gray-100 hover:bg-slate-50/50 transition-colors bg-white/80 backdrop-blur-xs">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full border font-bold text-xs shadow-xs ${badgeColor}">${badgeIcon}</span>
+                                <div>
+                                    <span class="font-bold text-gray-900 text-sm">${customer.name}</span>
+                                    <span class="text-xs text-gray-500 ml-1">${customer.age}歲</span>
+                                    <div class="text-[10px] font-mono text-gray-400 flex items-center mt-0.5">
+                                        <span>${customer.id}</span>
+                                        <button onclick="copyToClipboard('${customer.id}')" class="material-icons text-[10px] text-gray-400 ml-1">content_copy</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-gray-600 font-mono block">店: ${customer.store}</span>
+                                <span class="text-[9px] text-gray-400 block mt-0.5">原聽力師: ${customer.staff}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-2 text-xs bg-[#faf9f5]/80 p-2 rounded-xl border border-[#e8e6de]">
+                            <div><span class="text-gray-400 block text-[10px]">最新買斷機型</span><span class="font-bold text-slate-800">${customer.model}</span></div>
+                            <div><span class="text-gray-400 block text-[10px]">最新買斷日期</span><span class="font-mono text-gray-700">${customer.shipDate}</span></div>
+                        </div>
+
+                        <div class="space-y-2 pt-1">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 block mb-0.5">聯繫人員</label>
+                                    <select onchange="updateCustomerField('${customer.id}', 'contactStaff', this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-1 text-xs text-gray-700 focus:outline-none">${staffOptions}</select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 block mb-0.5">聯繫日期</label>
+                                    <input type="date" value="${customer.contactDate}" onchange="updateCustomerField('${customer.id}', 'contactDate', this.value)" class="border border-gray-300 rounded-xl px-2 py-0.5 text-xs w-full focus:outline-none bg-white" />
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 block mb-0.5">聯繫結果</label>
+                                    <select onchange="updateCustomerField('${customer.id}', 'status', this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-1 text-xs font-medium text-gray-700 focus:outline-none">${statusOptions}</select>
+                                    ${notesInputHtml}
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 block mb-0.5">下次進店日</label>
+                                    <input type="date" value="${customer.nextVisit}" onchange="updateCustomerField('${customer.id}', 'nextVisit', this.value)" class="border border-gray-300 rounded-xl px-2 py-0.5 text-xs w-full focus:outline-none bg-white" />
+                                </div>
+                            </div>
+
+                            <div class="border-t border-gray-100 pt-2 flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-[10px] font-bold text-gray-400">2026試聽:</span>
+                                    <button onclick="toggleCustomerBool('${customer.id}', 'isTrial2026')" class="px-2 py-0.5 rounded-xl text-[11px] transition text-center shadow-xs font-medium ${trialBtnClass}">${trialBtnText}</button>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <span class="text-[10px] font-bold text-gray-400">商機:</span>
+                                    <select onchange="updateCustomerField('${customer.id}', 'opportunity', this.value)" class="bg-white border border-gray-300 rounded px-1 py-0.5 text-xs font-bold text-gray-700 focus:outline-none">${oppOptions}</select>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-50/80 p-2 rounded-xl border border-gray-100">
+                                <label class="text-[10px] font-bold text-gray-400 block mb-0.5">試聽結果</label>
+                                <select onchange="updateCustomerField('${customer.id}', 'trialResult', this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-1 text-xs text-gray-700 focus:outline-none">${trialResultOptions}</select>
+                                ${trialOtherInputHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            tbody.innerHTML = tableHtml;
+            mobileList.innerHTML = mobileHtml;
+        }
+
+        function changePage(direction) { currentPage += direction; renderPaginationControls(); renderTablePage(); }
+        function jumpToPage(page) { currentPage = parseInt(page); renderPaginationControls(); renderTablePage(); }
+
+        function updateCustomerField(id, field, value) {
+            const customer = customerData.find(c => c.id === id);
+            if (customer) {
+                customer[field] = value;
+                // 如果修改狀態且尚未有日期，自動生成本日日期
+                if (field === 'status' && value !== '未聯繫' && !customer.contactDate) {
+                    const today = new Date();
+                    customer.contactDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                    if (window.syncToFirebase) window.syncToFirebase(id, 'contactDate', customer.contactDate);
+                }
+                runSmartSegmentation();
+                renderLeaderboard(); updateTableAndStats(true);
+                
+                // 【實時同步單筆修改到 Firebase】
+                if (window.syncToFirebase) {
+                    window.syncToFirebase(id, field, value);
+                }
+            }
+        }
+
+        function toggleCustomerBool(id, field) {
+            const customer = customerData.find(c => c.id === id);
+            if (customer) {
+                customer[field] = !customer[field];
+                renderLeaderboard(); updateTableAndStats(true);
+                
+                // 【實時同步單筆 Bool 修改到 Firebase】
+                if (window.syncToFirebase) {
+                    window.syncToFirebase(id, field, customer[field]);
+                }
+            }
+        }
+
+        function selectLevel(level) {
+            currentLevel = level;
+            document.querySelectorAll('.level-btn').forEach(btn => {
+                const btnText = btn.getAttribute('data-level');
+                if (btnText === level) btn.className = "level-btn bg-[#788896] text-white text-[11px] py-1.5 px-2.5 rounded-xl font-bold text-left w-full shadow-xs transition";
+                else {
+                    if (btnText === '全部') btn.className = "level-btn bg-white/90 text-gray-700 border border-gray-200 text-[11px] py-1.5 px-2.5 rounded-xl text-left w-full transition hover:bg-gray-50";
+                    else if (btnText.includes('升級黃金')) btn.className = "level-btn bg-white/90 text-[#b8837e] border border-gray-200 text-[11px] py-1.5 px-2.5 rounded-xl text-left w-full transition hover:bg-gray-50";
+                    else if (btnText.includes('保養關懷')) btn.className = "level-btn bg-white/90 text-[#839281] border border-gray-200 text-[11px] py-1.5 px-2.5 rounded-xl text-left w-full transition hover:bg-gray-50";
+                    else if (btnText.includes('抗拒配戴')) btn.className = "level-btn bg-white/90 text-[#bda286] border border-gray-200 text-[11px] py-1.5 px-2.5 rounded-xl text-left w-full transition hover:bg-gray-50";
+                    else if (btnText.includes('學齡成長')) btn.className = "level-btn bg-white/90 text-[#8e8299] border border-gray-200 text-[11px] py-1.5 px-2.5 rounded-xl text-left w-full transition hover:bg-gray-50";
+                }
+            });
+            updateTableAndStats();
+        }
+
+        function selectStatus(status) { currentStatus = status; updateTableAndStats(); }
+        function selectTrialFilter(trialVal) { currentTrialFilter = trialVal; updateTableAndStats(); }
+        function selectOpportunity(opp) { currentOpportunity = opp; updateTableAndStats(); }
+        function selectStore(storeGroup) { currentSelectedStore = (currentSelectedStore === storeGroup) ? null : storeGroup; renderLeaderboard(); updateTableAndStats(); }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initWeekRange();
+            runSmartSegmentation();
+            renderLeaderboard();
+            updateTableAndStats();
+        });
+
+        function resetSystem() {
+            if(confirm('確定要還原所有精耕名單的篩選與追蹤狀態嗎？（此動作會同步覆蓋雲端資料庫）')) {
+                const batchUpdates = {};
+                customerData.forEach(c => { 
+                    c.status = '未聯繫'; c.opportunity = ''; c.nextVisit = ''; c.contactStaff = ''; c.contactDate = ''; c.isTrial2026 = false; c.trialResult = ''; c.trialOtherReason = ''; c.notes = ''; 
+                    
+                    // 封裝批次重置物件
+                    batchUpdates[`customers/${c.id}`] = {
+                        status: '未聯繫', opportunity: '', nextVisit: '', contactStaff: '', contactDate: '', isTrial2026: false, trialResult: '', trialOtherReason: '', notes: ''
+                    };
+                });
+                currentLevel = '全部'; currentStatus = '所有狀態'; currentTrialFilter = '所有結果'; currentOpportunity = '所有商機'; currentSelectedStore = null;
+                document.getElementById('statusFilter').value = '所有狀態'; 
+                document.getElementById('trialFilter').value = '所有結果';
+                document.getElementById('opportunityFilter').value = '所有商機';
+                selectLevel('全部'); renderLeaderboard(); updateTableAndStats();
+                
+                // 【發送批次重置要求至 Firebase】
+                if (window.syncBatchToFirebase) {
+                    window.syncBatchToFirebase(batchUpdates);
+                }
+            }
+        }
+    </script>
+
+    <script type="module">
+        // 1. 引入 Firebase 基底與 Firestore 實時同步模組 (使用最新的 v12.13.0)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+        import { getFirestore, doc, updateDoc, setDoc, collection, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+        
+        // 2. 這是你最新專案的專屬金鑰
+        const firebaseConfig = {
+            apiKey: "AIzaSyD9K4qKRJxePfedzHOmWfEBMX5E1Q2vMfk",
+            authDomain: "tp3customer-retention.firebaseapp.com",
+            projectId: "tp3customer-retention",
+            storageBucket: "tp3customer-retention.firebasestorage.app",
+            messagingSenderId: "1024860987215",
+            appId: "1:1024860987215:web:41643734b9ab2eaac7af3a"
+        };
+        
+        // 3. 初始化 Firebase 與 Firestore 資料庫
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        // 【功能一：即時同步單筆修改到雲端】
+        window.syncToFirebase = async function(id, field, value) {
+            try {
+                const docRef = doc(db, "customers", String(id));
+                await updateDoc(docRef, { [field]: value });
+            } catch (error) {
+                console.error("單筆雲端更新失敗:", error);
+            }
+        };
+        
+        // 【功能二：整批重置或更新到雲端】
+        window.syncBatchToFirebase = async function(updates) {
+            try {
+                const batch = writeBatch(db);
+                for (const path in updates) {
+                    const parts = path.split('/');
+                    if (parts[0] === 'customers' && parts[1]) {
+                        const docRef = doc(db, "customers", parts[1]);
+                        batch.set(docRef, updates[path], { merge: true });
+                    }
+                }
+                await batch.commit();
+            } catch (error) {
+                console.error("批次雲端更新失敗:", error);
+            }
+        };
+        
+        // 【功能三：實時監聽雲端資料（跨電腦即時同步的關鍵機制）】
+        const customersCollection = collection(db, 'customers');
+        
+        onSnapshot(customersCollection, async (snapshot) => {
+            if (!snapshot.empty) {
+                // 如果雲端有資料，用雲端最新進度覆蓋本地網頁變數 (customerData)
+                snapshot.forEach((doc) => {
+                    const id = doc.id;
+                    const remoteData = doc.data();
+                    const localCustomer = customerData.find(c => String(c.id) === String(id));
+                    if (localCustomer) {
+                        Object.assign(localCustomer, remoteData);
+                    }
+                });
+            } else {
+                // 如果是全新初始化的空資料庫，自動將本地初始名單整批推上雲端
+                const batch = writeBatch(db);
+                customerData.forEach(c => {
+                    const docRef = doc(db, 'customers', String(c.id));
+                    batch.set(docRef, c);
+                });
+                await batch.commit();
+            }
+            
+            // 順利連線，點亮綠色狀態燈
+            document.getElementById('cloudStatusText').innerText = "雲端雙向同步中";
+            document.getElementById('cloudStatus').className = "flex items-center space-x-1 bg-emerald-900/40 text-emerald-300 text-[10px] md:text-xs px-2.5 py-1.5 rounded border border-emerald-800/60";
+            
+            // 重新刷新你的系統畫面與排行榜
+            runSmartSegmentation();
+            renderLeaderboard();
+            updateTableAndStats(true);
+        }, (error) => {
+            console.error("Firestore 連線或權限發生錯誤:", error);
+            document.getElementById('cloudStatusText').innerText = "雲端連線失敗";
+            document.getElementById('cloudStatus').className = "flex items-center space-x-1 bg-rose-900/40 text-rose-300 text-[10px] md:text-xs px-2.5 py-1.5 rounded border border-rose-800/60";
+        });
+    </script>
+</body>
+</html>
