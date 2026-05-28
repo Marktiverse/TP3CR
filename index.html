@@ -72,10 +72,6 @@
                 <span class="material-icons text-sm md:text-base">download</span>
                 <span>匯出進度</span>
             </button>
-            <button onclick="resetSystem()" class="bg-[#8c7674]/20 hover:bg-[#8c7674]/40 text-[#d4b6b3] text-xs px-3 py-1.5 rounded-xl flex items-center space-x-1 border border-[#ba9e9b]/30 transition">
-                <span class="material-icons text-sm md:text-base">refresh</span>
-                <span>重置看板</span>
-            </button>
         </div>
     </header>
 
@@ -143,6 +139,7 @@
                             <option value="未接/語音">未接/語音</option>
                             <option value="已換機">已換機</option>
                             <option value="婉拒進店">婉拒進店</option>
+                            <option value="選配他牌">選配他牌</option>
                         </select>
                     </div>
 
@@ -339,7 +336,7 @@
         // 門市與人員、試聽選項配置
         const uniqueStores = ["N011", "N021", "N297", "N900-1", "N901-1", "N880-1", "N107", "N108", "N115"]; 
         const staffList = ["吳碩修", "蔡亞欣", "郭瑋", "林劭恩", "江浩誠", "顧翠華", "詹婷婷", "許懿芬", "黃鈴鈞", "葉淳妤", "許如汶", "劉吉爾", "葉純妤", "陳玥璇"];
-        const statusList = ["未聯繫", "已預約進店", "未接/語音", "已換機", "婉拒進店"];
+        const statusList = ["未聯繫", "已預約進店", "未接/語音", "已換機", "婉拒進店", "選配他牌"];
         const trialResultList = ["買斷/訂閱", "新機佳等舊機壞", "新機普通", "新機不習慣", "其他"];
 
         let currentLevel = '全部';
@@ -714,7 +711,7 @@
                 });
 
                 const opp = customer.opportunity || '';
-                let oppOptions = `<option value="" ${opp === '' ? 'selected' : ''}>-</option><option value="高" ${opp === '高' ? 'selected' : ''}>高</option><option value="中" ${opp === '中' ? 'selected' : ''}>中</option><option value="低" ${opp === '低' ? 'selected' : ''}>低</option>`;
+                let oppOptions = `<option value="" ${opp === '' ? 'selected' : ''}>-</option><option value="高" ${opp === '高' ? 'selected' : ''}>高</option><option value="低" ${opp === '低' ? 'selected' : ''}>低</option>`;
 
                 let notesInputHtml = '';
                 if (customer.status === '婉拒進店') {
@@ -914,30 +911,6 @@
             renderLeaderboard();
             updateTableAndStats();
         });
-
-        function resetSystem() {
-            if(confirm('確定要還原所有精耕名單的篩選與追蹤狀態嗎？（此動作會同步覆蓋雲端資料庫）')) {
-                const batchUpdates = {};
-                customerData.forEach(c => { 
-                    c.status = '未聯繫'; c.opportunity = ''; c.nextVisit = ''; c.contactStaff = ''; c.contactDate = ''; c.isTrial2026 = false; c.trialResult = ''; c.trialOtherReason = ''; c.notes = ''; 
-                    
-                    // 封裝批次重置物件
-                    batchUpdates[`customers/${c.id}`] = {
-                        status: '未聯繫', opportunity: '', nextVisit: '', contactStaff: '', contactDate: '', isTrial2026: false, trialResult: '', trialOtherReason: '', notes: ''
-                    };
-                });
-                currentLevel = '全部'; currentStatus = '所有狀態'; currentTrialFilter = '所有結果'; currentOpportunity = '所有商機'; currentSelectedStore = null;
-                document.getElementById('statusFilter').value = '所有狀態'; 
-                document.getElementById('trialFilter').value = '所有結果';
-                document.getElementById('opportunityFilter').value = '所有商機';
-                selectLevel('全部'); renderLeaderboard(); updateTableAndStats();
-                
-                // 【發送批次重置要求至 Firebase】
-                if (window.syncBatchToFirebase) {
-                    window.syncBatchToFirebase(batchUpdates);
-                }
-            }
-        }
     </script>
 
     <script type="module">
